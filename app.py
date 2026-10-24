@@ -29,6 +29,9 @@ st.set_page_config(
     layout="centered",
     initial_sidebar_state="collapsed",
 )
+
+# Hide the in-app Streamlit header/toolbar area where supported.
+# Note: this cannot hide the browser chrome or Streamlit Cloud's outer page UI.
 st.markdown(
     """
     <style>
@@ -374,44 +377,22 @@ def render_header(api_key_configured: bool) -> None:
 
 
 def render_settings_drawer() -> tuple[str | None, str, str | None]:
-    """Provide a clean, collapsed configuration drawer for API credentials and model choice."""
-    env_key = os.getenv("GEMMA_API_KEY") or os.getenv("GEMINI_API_KEY")
-    env_model = os.getenv("GEMMA_MODEL", llm.DEFAULT_GEMMA_MODEL)
-    env_token = os.getenv("GITHUB_TOKEN", "")
+    """Read credentials from Streamlit Secrets/environment without showing them in the UI."""
+    def secret_or_env(name: str, default: str = "") -> str:
+        try:
+            value = st.secrets.get(name, "")
+        except Exception:
+            value = ""
+        return str(value or os.getenv(name, default) or "").strip()
 
-    with st.expander("⚙️ Provider & API Configuration", expanded=not bool(env_key)):
-        col1, col2 = st.columns([1, 1])
-        with col1:
-            gemma_key_input = st.text_input(
-                "Gemma API Key",
-                value=env_key if env_key else "",
-                type="password",
-                placeholder="AIzaSy...",
-                help="Requires a Google GenAI API key. Configure via GEMMA_API_KEY in .env or enter here.",
-            )
-            model_input = st.text_input(
-                "Gemma Model Identifier",
-                value=env_model,
-                placeholder="gemma-2-9b-it",
-                help="Configurable model identifier (e.g., gemma-2-9b-it, gemma-2-27b-it).",
-            )
-        with col2:
-            github_token_input = st.text_input(
-                "GitHub Personal Token (Optional)",
-                value=env_token,
-                type="password",
-                placeholder="ghp_...",
-                help="Optional token to increase rate limit from 60 to 5,000 requests/hour.",
-            )
-            st.caption(
-                "Public GitHub issues do not require a token. Your keys remain strictly "
-                "local in this session and are never exposed or shared."
-            )
+    env_key = secret_or_env("GEMMA_API_KEY") or secret_or_env("GEMINI_API_KEY")
+    env_model = secret_or_env("GEMMA_MODEL", llm.DEFAULT_GEMMA_MODEL)
+    env_token = secret_or_env("GITHUB_TOKEN")
 
     return (
-        gemma_key_input.strip() if gemma_key_input else None,
-        model_input.strip() if model_input else llm.DEFAULT_GEMMA_MODEL,
-        github_token_input.strip() if github_token_input else None,
+        env_key or None,
+        env_model or llm.DEFAULT_GEMMA_MODEL,
+        env_token or None,
     )
 
 
@@ -555,8 +536,8 @@ def main() -> None:
     """Application main entry point and workflow orchestration."""
     init_session_state()
 
-    configured_env_key = os.getenv("GEMMA_API_KEY") or os.getenv("GEMINI_API_KEY")
     api_key_override, target_model, github_token_override = render_settings_drawer()
+    configured_env_key = api_key_override
 
     active_api_key = api_key_override or configured_env_key
     render_header(api_key_configured=bool(active_api_key))
