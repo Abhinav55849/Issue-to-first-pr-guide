@@ -29,6 +29,20 @@ st.set_page_config(
     layout="centered",
     initial_sidebar_state="collapsed",
 )
+st.markdown(
+    """
+    <style>
+        header[data-testid="stHeader"] {
+            background: transparent !important;
+        }
+
+        div[data-testid="stToolbar"] {
+            display: none !important;
+        }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 # GitHub-inspired styling
 GITHUB_CSS = """
